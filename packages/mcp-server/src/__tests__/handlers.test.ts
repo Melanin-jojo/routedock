@@ -1267,6 +1267,8 @@ describe('handleListProviders', () => {
   })
 
   it('reads multi-asset providers from the manifest column', async () => {
+    // A manifest's `assets` is an AssetConfig[] (asset / asset_contract /
+    // modes), not a list of codes, so this is what PostgREST projects.
     const rows = [
       {
         name: 'ProvC',
@@ -1276,7 +1278,12 @@ describe('handleListProviders', () => {
         modes: ['mpp-charge'],
         tags: [],
         verified: false,
-        manifest: { assets: ['USDC', 'EURC'] },
+        manifest: {
+          assets: [
+            { asset: 'USDC', asset_contract: 'C...', modes: ['x402'] },
+            { asset: 'EURC', asset_contract: 'C...', modes: ['x402'] },
+          ],
+        },
       },
     ]
     const deps = baseDeps({ supabase: makeSupabase(rows) })

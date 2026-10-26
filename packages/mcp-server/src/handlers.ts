@@ -11,7 +11,12 @@
  * the MCP Server, and dispatching to these functions.
  */
 
-import type { RouteDockClient, SessionHandle, PaymentMode } from '@routedock/routedock'
+import type {
+  RouteDockClient,
+  SessionHandle,
+  PaymentMode,
+  AssetConfig,
+} from '@routedock/routedock'
 import { usdcToStroops } from '@routedock/routedock'
 // Canonical network constants (issue #578): the server keeps one copy of the
 // Horizon URL and USDC issuer tables instead of its own next to the providers
@@ -51,8 +56,8 @@ export interface ProviderRow {
   verified?: boolean | null
   registered_at?: string
   asset?: string
-  assets?: string[]
-  manifest?: { asset?: string; assets?: string[] } | null
+  assets?: AssetConfig[]
+  manifest?: { asset?: string; assets?: AssetConfig[] } | null
   [key: string]: unknown
 }
 
@@ -606,13 +611,14 @@ const PROVIDER_COLUMNS =
   'manifest->asset, manifest->assets'
 
 /**
- * Accepted assets for a row.  PostgREST projects `manifest->asset` and
+ * Accepted asset codes for a row.  PostgREST projects `manifest->asset` and
  * `manifest->assets` onto top-level keys, but a caller that hands us a full
- * manifest row works too, so both shapes are read.  Order is preserved and
- * duplicates dropped.
+ * manifest row works too, so both shapes are read.  `assets` is an
+ * AssetConfig[] (`packages/sdk/src/types.ts`) whose `asset` field is the code,
+ * not a list of codes.  Order is preserved and duplicates dropped.
  */
 function providerAssets(row: ProviderRow): string[] {
-  const candidates: Array<string | string[] | undefined> = [
+  const candidates: Array<string | AssetConfig[] | undefined> = [
     row.asset,
     row.assets,
     row.manifest?.asset,
@@ -623,8 +629,9 @@ function providerAssets(row: ProviderRow): string[] {
   for (const candidate of candidates) {
     const values = Array.isArray(candidate) ? candidate : [candidate]
     for (const value of values) {
-      if (typeof value === 'string' && value && !assets.includes(value)) {
-        assets.push(value)
+      const code = typeof value === 'string' ? value : value?.asset
+      if (code && !assets.includes(code)) {
+        assets.push(code)
       }
     }
   }
